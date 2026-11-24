@@ -3696,7 +3696,7 @@ function goTo(id) {
 /* ---------- Equipo (editable) ---------- */
 const TEAM_KEY = 'pld-equipo-v1';
 const TEAM_DEFAULT = {
-  titulo: 'Programa Único de Cumplimiento PLD/FT', escuela: 'Facultad de Contaduría y Administración (FCA)', materia: '', profesor: '', grupo: '', fecha: '',
+  titulo: 'Programa Único de Cumplimiento PLD/FT', escuela: 'Facultad de Contaduría y Administración (FCA)', materia: '', profesor: '', grupo: '7.º semestre', fecha: '24 de noviembre de 2026',
   miembros: [{ n: 'Balderas Meneses Fernando Jose', r: 'Integrante del equipo' }, { n: 'Carrillo Flores Fernando', r: 'Integrante del equipo' }, { n: 'Mendoza Martinez Emmanuel', r: 'Integrante del equipo' }, { n: 'Negrete Cedillo Andrea Irasema', r: 'Integrante del equipo' }, { n: 'Tapia Moncivais Andrea', r: 'Integrante del equipo' }]
 };
 function cleanTeam(d) {
@@ -3730,7 +3730,7 @@ function renderTeam() {
     : '<p class="muted">Aún no hay integrantes. Usa “Editar nombres y datos” para agregarlos.</p>';
   const names = team.miembros.map(m => m.n).filter(Boolean);
   $('#heroNames').textContent = names.length ? names.join(', ') : '—';
-  $('#heroSchool').textContent = [team.materia, team.escuela].filter(Boolean).join(' · ');
+  $('#heroSchool').textContent = [team.materia, team.escuela, team.grupo, team.fecha ? 'Entrega: ' + team.fecha : ''].filter(Boolean).join(' · ');
   $('#heroTitle').textContent = team.titulo || TEAM_DEFAULT.titulo;
 }
 function memberRow(m, i) {
