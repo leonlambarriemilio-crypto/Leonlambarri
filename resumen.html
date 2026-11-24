@@ -802,6 +802,7 @@ html.presenting .sec{min-height:calc(100vh - 64px)}
       <li><a href="#que-es">Qué es</a></li>
       <li><a href="#proceso">Proceso</a></li>
       <li><a href="#umbrales">Umbrales</a></li>
+      <li><a href="#calculadora">Calculadora</a></li>
       <li><a href="#metodologia">Metodología</a></li>
       <li><a href="#resultados">Resultados</a></li>
       <li><a href="#riesgos">Riesgos clave</a></li>
@@ -883,9 +884,53 @@ html.presenting .sec{min-height:calc(100vh - 64px)}
     <div class="sec-head">
       <p class="eyebrow">Umbrales LFPIORPI 2026</p>
       <h2>¿Cuándo se activa cada obligación?</h2>
-      <p class="lead">Los montos se calculan en veces la UMA diaria ($117.31) y se comparan contra el precio sin IVA ni ISAN.</p>
+      <p class="lead">Los montos se calculan en veces la UMA diaria y se comparan contra el precio sin IVA ni ISAN. Prueba la calculadora con cualquier venta.</p>
     </div>
     <div class="grid g3" id="thrCards"></div>
+    <div class="card mt" id="calculadora">
+      <h3>Calculadora de obligaciones</h3>
+      <p class="muted small" style="margin:0 0 16px">Escribe el monto de una operación (sin IVA ni ISAN) o elige un vehículo del catálogo.</p>
+      <div class="calc">
+        <div>
+          <div class="field">
+            <label for="cVeh">Vehículo del catálogo</label>
+            <div class="row2">
+              <select class="sel" id="cVeh"><option value="">— Monto manual —</option></select>
+              <input class="inp" id="cUnits" type="number" min="1" max="50" value="1" aria-label="Unidades">
+            </div>
+            <span class="hint">El segundo campo es el número de unidades.</span>
+          </div>
+          <div class="field">
+            <label for="cMonto">Monto de la operación (MXN)</label>
+            <div class="money"><span>$</span><input class="inp" id="cMonto" type="number" min="0" step="100" value="890500"></div>
+          </div>
+          <div class="field">
+            <label for="cPrev">Compras previas del cliente en los últimos 6 meses (MXN)</label>
+            <div class="money"><span>$</span><input class="inp" id="cPrev" type="number" min="0" step="100" value="0"></div>
+            <span class="hint">Las operaciones se acumulan en periodos de 6 meses (Art. 17).</span>
+          </div>
+          <div class="field">
+            <label for="cEfec">¿Cuánto se pagaría en efectivo? (MXN)</label>
+            <div class="money"><span>$</span><input class="inp" id="cEfec" type="number" min="0" step="100" value="370000"></div>
+            <p class="err" id="cErr" hidden></p>
+          </div>
+          <div class="field">
+            <label for="cUma">Valor de la UMA diaria (MXN)</label>
+            <div class="money"><span>$</span><input class="inp" id="cUma" type="number" min="1" step="0.01"></div>
+            <span class="hint">Cambiarlo recalcula los umbrales de la página. <button type="button" class="btn ghost" id="cUmaReset" style="min-height:0;padding:0 4px;font-size:12px">Restablecer 2026</button></span>
+          </div>
+        </div>
+        <div>
+          <div class="res-total">
+            <div><div class="muted small">Monto acumulado evaluado</div><div class="big tnum" id="rTotal">—</div></div>
+            <div><div class="muted small">Equivale a</div><div class="tnum" style="font-weight:800;font-size:20px" id="rUma">—</div></div>
+            <div id="rLvl"></div>
+          </div>
+          <div class="scale" id="rScale" aria-hidden="true"></div>
+          <div class="obls" id="rObls"></div>
+        </div>
+      </div>
+    </div>
     <div class="veh-groups" id="vehGroups"></div>
   </div>
 </section>
@@ -1042,7 +1087,10 @@ const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const EF = Object.fromEntries(D.efectividad.map(e => [e.nombre, e.factor]));
 const PRICE = Object.fromEntries(D.vehiculos.map(v => [v.modelo, v.precio]));
 const SHORT = { 'Clientes': 'Clientes', 'Productos y Servicios': 'Productos', 'Tipos de Operación y Pago': 'Operación y pago', 'Canales de Distribución': 'Canales', 'Zonas Geográficas': 'Geografía' };
-const TH = { id: 3210 * D.uma, av: 6420 * D.uma, ef: 3210 * D.uma };
+let UMA = D.uma;
+const TH = { id: 0, av: 0, ef: 0 };
+const setUma = u => { UMA = u; TH.id = 3210 * u; TH.av = 6420 * u; TH.ef = 3210 * u; };
+setUma(D.uma);
 
 /* ---------- Cálculo de la matriz ---------- */
 const rows = D.matriz.map(r => {
@@ -1063,17 +1111,18 @@ const abat = (avgC('ri') - avgC('rr2')) / avgC('ri');
 $('#heroNames').textContent = TEAM.join(', ');
 $('#kpiJourney').innerHTML = `${badge(G.ri)}<span class="arrow">→</span>${badge(G.rr1)}<span class="arrow">→</span>${badge(G.rr2)}`;
 $('#kpiAbat').textContent = fmt(abat * 100, 1) + '%';
-$('#kpiUma').textContent = MXN.format(D.uma);
+
+/* ---------- Umbrales y vehículos ---------- */
+function renderUmbrales() {
+$('#kpiUma').textContent = MXN.format(UMA);
 $('#kpiId').textContent = MXN0.format(TH.id);
 $('#kpiAv').textContent = MXN0.format(TH.av);
 $('#kpiEf').textContent = MXN0.format(TH.ef);
-
-/* ---------- Umbrales y vehículos ---------- */
 $('#thrCards').innerHTML = [
   ['Identificación (KYC)', TH.id, 3210, 'Integrar expediente único y beneficiario controlador antes de facturar.'],
   ['Aviso ante SAT / UIF', TH.av, 6420, 'Aviso electrónico a más tardar el día 17 del mes siguiente.'],
   ['Tope de efectivo', TH.ef, 3210, 'Prohibido recibir efectivo por este monto o más (Art. 32 Fr. II).']
-].map(([n, m, v, d]) => `<div class="card thr lift"><p class="eyebrow">${n}</p><div class="t-amt tnum">${MXN.format(m)}</div><div class="t-uma">${fmt(v, 0)} UMA</div><p>${d}</p></div>`).join('');
+].map(([n, m, v, d]) => `<div class="card thr lift"><p class="eyebrow">${n}</p><div class="t-amt tnum">${MXN.format(m)}</div><div class="t-uma">${fmt(v, 0)} UMA × ${MXN.format(UMA)}</div><p>${d}</p></div>`).join('');
 const groups = [
   ['Bajo', 'Debajo de identificación', 'Solo se vigila la acumulación a 6 meses.', v => v.precio < TH.id],
   ['Medio', 'Identificación obligatoria', 'Expediente KYC completo; no genera aviso.', v => v.precio >= TH.id && v.precio < TH.av],
@@ -1083,6 +1132,45 @@ $('#vehGroups').innerHTML = groups.map(([lv, t, d, f]) => {
   const vs = D.vehiculos.filter(f);
   return `<div class="card"><h3>${lvlBadge(lv)} ${t}</h3><p>${d}</p><ul>${vs.map(v => `<li><span>${esc(v.modelo)}</span><b>${MXN0.format(v.precio)}</b></li>`).join('')}</ul></div>`;
 }).join('');
+renderCliTbl();
+}
+
+/* ---------- Calculadora de obligaciones ---------- */
+const C = { veh: $('#cVeh'), units: $('#cUnits'), monto: $('#cMonto'), prev: $('#cPrev'), efec: $('#cEfec'), uma: $('#cUma') };
+function calcObl() {
+  const monto = Math.max(0, parseFloat(C.monto.value) || 0), prev = Math.max(0, parseFloat(C.prev.value) || 0), efec = Math.max(0, parseFloat(C.efec.value) || 0);
+  const total = monto + prev, err = $('#cErr');
+  err.hidden = efec <= monto;
+  err.textContent = efec > monto ? 'El efectivo no puede ser mayor que el monto de la operación.' : '';
+  $('#rTotal').textContent = MXN.format(total);
+  $('#rUma').textContent = fmt(total / UMA, 1) + ' UMA';
+  $('#rLvl').innerHTML = `<div class="muted small">Exposición PLD</div>${lvlBadge(total >= TH.av ? 'Alto' : total >= TH.id ? 'Medio' : 'Bajo')}`;
+  const max = Math.max(total, TH.av) * 1.15, pct = x => Math.min(100, x / max * 100);
+  $('#rScale').innerHTML = `<div class="fill" style="width:${pct(total)}%"></div><div class="mk" style="left:${pct(TH.id)}%"><span>Identificación ${MXN0.format(TH.id)}</span></div><div class="mk b" style="left:${pct(TH.av)}%"><span>Aviso ${MXN0.format(TH.av)}</span></div>`;
+  const idOn = total >= TH.id, avOn = total >= TH.av, efStop = efec >= TH.ef;
+  const items = [
+    [idOn ? 'on' : 'off', idOn ? '✓' : '–', idOn ? 'Requiere identificación completa (KYC)' : 'No alcanza el umbral de identificación',
+      idOn ? 'Integrar expediente único, beneficiario controlador y consulta en listas antes de facturar.' : `Faltan ${MXN.format(TH.id - total)} para el umbral. Se sigue monitoreando la acumulación a 6 meses.`],
+    [avOn ? 'on' : 'off', avOn ? '✓' : '–', avOn ? 'Obliga a presentar Aviso ante SAT/UIF' : 'No obliga a presentar Aviso',
+      avOn ? 'Aviso mensual a más tardar el día 17 del mes siguiente (Art. 23 LFPIORPI).' : `Faltan ${MXN.format(TH.av - total)} para el umbral de aviso.`],
+    [efStop ? 'stop' : (efec > 0 ? 'on' : 'off'), efStop ? '!' : (efec > 0 ? '✓' : '–'),
+      efStop ? 'Efectivo NO permitido' : (efec > 0 ? 'Efectivo dentro del límite legal' : 'Sin pago en efectivo'),
+      efStop ? `El efectivo (${MXN.format(efec)}) alcanza o rebasa el tope de ${MXN.format(TH.ef)} (Art. 32 Fr. II). La caja debe rechazarlo.`
+        : (efec > 0 ? `Margen restante: ${MXN.format(TH.ef - efec)}. ${efec >= TH.ef * 0.9 ? 'Está muy cerca del tope: aplicar Cédula PT-04 de origen de efectivo.' : 'Registrar en Cédula PT-04.'}` : 'Pago por SPEI, cheque nominativo o crédito.')]
+  ];
+  $('#rObls').innerHTML = items.map(([c, ic, b, d]) => `<div class="obl ${c}"><span class="ic">${ic}</span><div><b>${b}</b><span>${d}</span></div></div>`).join('');
+}
+C.veh.insertAdjacentHTML('beforeend', D.vehiculos.map(v => `<option value="${esc(v.modelo)}">${esc(v.modelo)} — ${MXN0.format(v.precio)}</option>`).join(''));
+C.veh.value = 'Tucson Híbrida 2026';
+C.uma.value = D.uma;
+const fromVeh = () => { if (C.veh.value) C.monto.value = PRICE[C.veh.value] * Math.max(1, +C.units.value || 1); calcObl(); };
+C.veh.addEventListener('change', fromVeh);
+C.units.addEventListener('input', fromVeh);
+C.monto.addEventListener('input', () => { C.veh.value = ''; calcObl(); });
+C.prev.addEventListener('input', calcObl);
+C.efec.addEventListener('input', calcObl);
+C.uma.addEventListener('input', () => { const u = parseFloat(C.uma.value); if (u > 0) { setUma(u); renderUmbrales(); calcObl(); } });
+$('#cUmaReset').addEventListener('click', () => { C.uma.value = D.uma; setUma(D.uma); renderUmbrales(); calcObl(); });
 
 /* ---------- Metodología ---------- */
 $('#effLine').innerHTML = '<b>Efectividad del control:</b>' + D.efectividad.filter(e => e.nombre !== 'No Aplica').map(e => `<span class="tag blue">${esc(e.nombre)} × ${fmt(e.factor)}</span>`).join('');
@@ -1104,9 +1192,13 @@ $('#topRisk').innerHTML = rows.slice().sort((a, b) => b.ri - a.ri || a.n - b.n).
 
 /* ---------- Clientes ---------- */
 $('#cliLead').textContent = `En promedio el riesgo de la cartera baja de ${fmt(avgC('ri'))} a ${fmt(avgC('rr2'))} puntos: ${fmt(abat * 100, 1)}% de abatimiento.`;
+function renderCliTbl() {
 const oblig = m => m >= TH.av ? 'KYC + Aviso' : m >= TH.id ? 'Solo KYC' : 'Debajo del umbral';
 $('#cliTbl').innerHTML = `<thead><tr><th>ID</th><th>Perfil</th><th>Vehículo</th><th class="r">Monto</th><th>Obligación</th><th>Inherente → final</th></tr></thead><tbody>` +
   cs.map(c => `<tr><td><b>${esc(c.id)}</b></td><td class="perf">${esc(c.perfil)}</td><td>${esc(c.modelo)}${c.unid > 1 ? ' × ' + c.unid : ''}</td><td class="r tnum">${MXN0.format(c.monto)}</td><td><span class="tag blue">${oblig(c.monto)}</span></td><td style="white-space:nowrap">${pill(c.ri)} → ${pill(c.rr2)}</td></tr>`).join('') + '</tbody>';
+}
+renderUmbrales();
+calcObl();
 
 /* ---------- Alertas y equipo ---------- */
 $('#alGrid').innerHTML = D.alertas.map(a => `<div class="al lift"><span class="code">${esc(a.code)}</span><div><b>${esc(a.title)}</b><span class="d">${esc(a.desc.length > 150 ? a.desc.slice(0, 148).replace(/\s+\S*$/, '') + '…' : a.desc)}</span></div></div>`).join('');
